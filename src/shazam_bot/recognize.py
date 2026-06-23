@@ -39,7 +39,7 @@ def _parse_providers(track_json: dict[str, Any]) -> tuple[str | None, str | None
         uri = next((a.get('uri', '') for a in actions if a.get('uri')), '')
         if 'Spotify' in caption:
             if uri.startswith('spotify:search:'):
-                q = quote(unquote(uri[len('spotify:search:'):]))
+                q = quote(unquote(uri[len('spotify:search:') :]))
                 spotify_url = f'https://open.spotify.com/search/{q}'
             elif uri.startswith('https://'):
                 spotify_url = uri
@@ -101,9 +101,12 @@ async def _get_duration(input_path: Path) -> float | None:
     try:
         proc = await asyncio.create_subprocess_exec(
             'ffprobe',
-            '-v', 'quiet',
-            '-show_entries', 'format=duration',
-            '-of', 'csv=p=0',
+            '-v',
+            'quiet',
+            '-show_entries',
+            'format=duration',
+            '-of',
+            'csv=p=0',
             str(input_path),
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.DEVNULL,
@@ -148,14 +151,12 @@ async def recognize(input_path: Path) -> Track | None:
 
         wavs = [tmp_dir / f'seg{i + 1}.wav' for i in range(len(FALLBACK_FRACS))]
         positions = [str(int(duration * f)) for f in FALLBACK_FRACS]
-        converted = await asyncio.gather(*[
-            _convert_to_wav(input_path, wav, ss=pos, duration=SEGMENT_DURATION)
-            for wav, pos in zip(wavs, positions, strict=False)
-        ])
+        converted = await asyncio.gather(
+            *[
+                _convert_to_wav(input_path, wav, ss=pos, duration=SEGMENT_DURATION)
+                for wav, pos in zip(wavs, positions, strict=False)
+            ]
+        )
 
-        results = await asyncio.gather(*[
-            _recognize_wav(wav)
-            for wav, ok in zip(wavs, converted, strict=False)
-            if ok
-        ])
+        results = await asyncio.gather(*[_recognize_wav(wav) for wav, ok in zip(wavs, converted, strict=False) if ok])
         return next((r for r in results if r is not None), None)

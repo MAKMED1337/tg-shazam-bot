@@ -6,7 +6,6 @@ fix = true
 quote-style = "single"
 
 [lint]
-# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
 select = ["ALL"]
 ignore = [
     "D",
@@ -20,22 +19,26 @@ ignore = [
     "TRY300",
 ]
 
-# Allow autofix for all enabled rules (when `--fix`) is provided.
 fixable = ["ALL"]
 unfixable = []
 
-
-# Allow unused variables when underscore-prefixed.
 dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 
+[lint.per-file-ignores]
+"tests/**" = ["S101"]
 
-pylint.max-args = 8
+[lint.pylint]
+max-args = 8
 
-mccabe.max-complexity = 10
+[lint.mccabe]
+max-complexity = 10
 
-flake8-quotes.inline-quotes = "single"
+[lint.flake8-quotes]
+inline-quotes = "single"
 
-flake8-annotations.suppress-dummy-args = true
-flake8-annotations.mypy-init-return = true
+[lint.flake8-annotations]
+suppress-dummy-args = true
+mypy-init-return = true
 
-flake8-builtins.builtins-ignorelist = ["id", "type", "all"]
+[lint.flake8-builtins]
+builtins-ignorelist = ["id", "type", "all"]

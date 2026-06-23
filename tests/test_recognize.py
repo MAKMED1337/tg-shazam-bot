@@ -14,8 +14,9 @@ Both the JSON and audio files are gitignored.
 """
 
 import json
-import pytest
 from pathlib import Path
+
+import pytest
 
 from shazam_bot.recognize import recognize
 
@@ -23,19 +24,19 @@ _DATA_DIR = Path(__file__).parent / 'data'
 _CASES_FILE = _DATA_DIR / 'test_cases.json'
 
 
-def _load_cases() -> list[dict]:
+def _load_cases() -> list[dict[str, str]]:
     if not _CASES_FILE.exists():
         return []
     with _CASES_FILE.open() as f:
-        return json.load(f)
+        return json.load(f)  # type: ignore[no-any-return]
 
 
-def _case_id(case: dict) -> str:
+def _case_id(case: dict[str, str]) -> str:
     return Path(case['file']).stem
 
 
 @pytest.mark.parametrize('case', _load_cases(), ids=_case_id)
-async def test_recognize(case: dict) -> None:
+async def test_recognize(case: dict[str, str]) -> None:
     audio_path = Path(case['file'])
     if not audio_path.is_absolute():
         audio_path = _DATA_DIR / audio_path

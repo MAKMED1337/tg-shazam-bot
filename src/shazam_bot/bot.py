@@ -53,13 +53,13 @@ async def _download_cover(url: str, dest: Path) -> bool:
 
 
 def _extract_media(message: types.Message) -> tuple[str, int | None, str] | None:
-    if (a := message.audio):
+    if a := message.audio:
         return a.file_id, a.file_size, (a.mime_type or 'audio/mpeg').split('/')[-1] or 'mp3'
-    if (v := message.voice):
+    if v := message.voice:
         return v.file_id, v.file_size, 'ogg'
-    if (v := message.video):
+    if v := message.video:
         return v.file_id, v.file_size, (v.mime_type or 'video/mp4').split('/')[-1] or 'mp4'
-    if (vn := message.video_note):
+    if vn := message.video_note:
         return vn.file_id, vn.file_size, 'mp4'
     if (d := message.document) and (d.mime_type or '').startswith(('audio/', 'video/')):
         return d.file_id, d.file_size, (d.mime_type or '').split('/')[-1] or 'bin'
