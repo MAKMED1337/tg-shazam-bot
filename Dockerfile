@@ -6,6 +6,8 @@ RUN apt-get update \
 
 COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 
+ENV PATH="/app/.venv/bin:$PATH"
+
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
