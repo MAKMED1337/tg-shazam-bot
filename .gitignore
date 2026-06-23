@@ -15,3 +15,6 @@ dist/
 # IDE
 .idea/
 .vscode/
+
+# Test data (audio files and cases violate copyright)
+tests/data/

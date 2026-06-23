@@ -114,7 +114,9 @@ async def _get_duration(input_path: Path) -> float | None:
 
 async def _recognize_wav(wav_path: Path) -> Track | None:
     try:
-        result: dict[str, Any] = await _shazam.recognize(str(wav_path))
+        # recognize_song uses the Python fingerprinting path which is more reliable
+        # than the Rust shazamio_core path used by recognize()
+        result: dict[str, Any] = await _shazam.recognize_song(wav_path)
         if result and 'track' in result:
             return _parse_track(result['track'])
     except Exception:  # noqa: BLE001,S110
