@@ -76,6 +76,7 @@ async def _handle_media(  # noqa: C901
         await message.reply('⚠️ File is too large (max 20 MB). Please send a shorter clip.')
         return
 
+    logger.info('Recognition started: file_id=%s size=%s ext=%s', file_id, file_size, file_ext)
     status = await message.reply('🎧 Recognizing…')
 
     with tempfile.TemporaryDirectory() as tmp:
@@ -91,9 +92,11 @@ async def _handle_media(  # noqa: C901
 
         track = await recognize(input_path)
         if track is None:
+            logger.info('Recognition failed for file_id=%s', file_id)
             await status.edit_text("😔 Couldn't recognize the music.")
             return
 
+        logger.info('Recognized: %s - %s', track.title, track.artist)
         await status.edit_text(
             f'🎵 Found: <b>{track.title}</b> — {track.artist}\n\nFetching MP3…',
             parse_mode='HTML',
@@ -102,6 +105,7 @@ async def _handle_media(  # noqa: C901
         # Prefer the exact YT Music URL from Shazam over a fuzzy text search
         yt_source = track.ytmusic_url or f'{track.title} {track.artist}'
         mp3_result = await fetch_mp3(yt_source, tmp_dir)
+        logger.info('MP3 fetch %s for: %s - %s', 'succeeded' if mp3_result else 'failed', track.title, track.artist)
         youtube_url: str | None = None
         mp3_path: Path | None = None
         if mp3_result:
