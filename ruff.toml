@@ -1,0 +1,41 @@
+line-length = 120
+target-version = "py312"
+fix = true
+
+[format]
+quote-style = "single"
+
+[lint]
+# Enable pycodestyle (`E`) and Pyflakes (`F`) codes by default.
+select = ["ALL"]
+ignore = [
+    "D",
+    "COM812",
+    "EM101",
+    "TRY003",
+    "E741",
+    "ANN204",
+    "TD",
+    "ISC001", # ruff format requires this
+    "TRY300",
+]
+
+# Allow autofix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+
+pylint.max-args = 8
+
+mccabe.max-complexity = 10
+
+flake8-quotes.inline-quotes = "single"
+
+flake8-annotations.suppress-dummy-args = true
+flake8-annotations.mypy-init-return = true
+
+flake8-builtins.builtins-ignorelist = ["id", "type", "all"]

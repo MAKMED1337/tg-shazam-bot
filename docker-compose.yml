@@ -1,0 +1,10 @@
+services:
+  bot:
+    build: .
+    env_file: .env/bot.env
+    restart: unless-stopped
+    volumes:
+      - yt_dlp_cache:/tmp/yt-dlp
+
+volumes:
+  yt_dlp_cache:
