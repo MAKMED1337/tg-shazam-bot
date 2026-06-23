@@ -7,6 +7,8 @@ from typing import Any
 from urllib.parse import quote, unquote
 
 from shazamio import Shazam
+from shazamio.converter import Converter
+from shazamio.utils import get_song
 
 FFMPEG_TIMEOUT = 120
 FALLBACK_MIN_DURATION = 30.0
@@ -114,9 +116,14 @@ async def _get_duration(input_path: Path) -> float | None:
 
 async def _recognize_wav(wav_path: Path) -> Track | None:
     try:
-        # recognize_song uses the Python fingerprinting path which is more reliable
-        # than the Rust shazamio_core path used by recognize()
-        result: dict[str, Any] = await _shazam.recognize_song(wav_path)
+        # Use the Python fingerprinting path (Converter + send_recognize_request) rather
+        # than shazamio's Rust-backed recognize(), which fails to match on some files.
+        song = await get_song(data=wav_path)
+        audio = Converter.normalize_audio_data(song)
+        sig = Converter.create_signature_generator(audio).get_next_signature()
+        if sig is None:
+            return None
+        result: dict[str, Any] = await _shazam.send_recognize_request(sig)
         if result and 'track' in result:
             return _parse_track(result['track'])
     except Exception:  # noqa: BLE001,S110
