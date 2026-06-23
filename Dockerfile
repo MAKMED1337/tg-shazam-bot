@@ -9,8 +9,9 @@ COPY --from=ghcr.io/astral-sh/uv:latest /uv /uvx /usr/local/bin/
 WORKDIR /app
 
 COPY pyproject.toml uv.lock ./
-COPY src/ ./src/
+RUN uv sync --frozen --no-dev --no-install-project
 
+COPY src/ ./src/
 RUN uv sync --frozen --no-dev
 
-CMD ["uv", "run", "python", "-m", "shazam_bot"]
+CMD ["/app/.venv/bin/python", "-m", "shazam_bot"]
