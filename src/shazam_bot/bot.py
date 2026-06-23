@@ -1,3 +1,4 @@
+import asyncio
 import contextlib
 import logging
 import tempfile
@@ -97,28 +98,20 @@ async def _handle_media(  # noqa: C901
             return
 
         logger.info('Recognized: %s - %s', track.title, track.artist)
-        await status.edit_text(
-            f'🎵 Found: <b>{track.title}</b> — {track.artist}\n\nFetching MP3…',
-            parse_mode='HTML',
-        )
 
-        # Prefer the exact YT Music URL from Shazam over a fuzzy text search
+        # Kick off MP3 fetch immediately; download cover concurrently while it runs
         yt_source = track.ytmusic_url or f'{track.title} {track.artist}'
-        mp3_result = await fetch_mp3(yt_source, tmp_dir)
-        logger.info('MP3 fetch %s for: %s - %s', 'succeeded' if mp3_result else 'failed', track.title, track.artist)
-        youtube_url: str | None = None
-        mp3_path: Path | None = None
-        if mp3_result:
-            mp3_path, youtube_url = mp3_result
-
-        caption = build_caption(track)
-        keyboard = build_keyboard(track, youtube_url=youtube_url)
+        mp3_task = asyncio.create_task(fetch_mp3(yt_source, tmp_dir))
 
         cover_path: Path | None = None
         if track.cover_url:
             cover_path = tmp_dir / 'cover.jpg'
             if not await _download_cover(track.cover_url, cover_path):
                 cover_path = None
+
+        # Send links as soon as cover is ready — don't wait for the MP3
+        caption = build_caption(track)
+        keyboard = build_keyboard(track)
 
         with contextlib.suppress(Exception):
             await status.delete()
@@ -136,16 +129,21 @@ async def _handle_media(  # noqa: C901
         except Exception:
             logger.exception('Failed to send track info')
 
-        if mp3_path and mp3_path.exists():
-            try:
-                await message.reply_audio(
-                    audio=FSInputFile(mp3_path),
-                    title=track.title,
-                    performer=track.artist,
-                    thumbnail=FSInputFile(cover_path) if cover_path else None,
-                )
-            except Exception:
-                logger.exception('Failed to send MP3')
+        mp3_result = await mp3_task
+        logger.info('MP3 fetch %s for: %s - %s', 'succeeded' if mp3_result else 'failed', track.title, track.artist)
+
+        if mp3_result:
+            mp3_path, _ = mp3_result
+            if mp3_path.exists():
+                try:
+                    await message.reply_audio(
+                        audio=FSInputFile(mp3_path),
+                        title=track.title,
+                        performer=track.artist,
+                        thumbnail=FSInputFile(cover_path) if cover_path else None,
+                    )
+                except Exception:
+                    logger.exception('Failed to send MP3')
 
 
 @dp.message(Command('start', 'help'))
