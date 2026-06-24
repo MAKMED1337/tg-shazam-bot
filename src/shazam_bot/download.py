@@ -1,12 +1,31 @@
 import asyncio
 import logging
 from pathlib import Path
+from urllib.parse import parse_qs, urlparse
 
 DOWNLOAD_TIMEOUT = 300
 MAX_FILESIZE = '50M'
 EXPECTED_PRINT_LINES = 2
 
 logger = logging.getLogger(__name__)
+
+
+def _build_target(query_or_url: str) -> str:
+    """Convert search-page URLs to yt-dlp search expressions."""
+    if not query_or_url.startswith('https://'):
+        return f'ytsearch1:{query_or_url}'
+
+    parsed = urlparse(query_or_url)
+    is_youtube_search = parsed.hostname in {'music.youtube.com', 'www.youtube.com', 'youtube.com'} and parsed.path in {
+        '/search',
+        '/results',
+    }
+    if is_youtube_search:
+        query = parse_qs(parsed.query).get('q', [''])[0].strip()
+        if query:
+            return f'ytsearch1:{query}'
+
+    return query_or_url
 
 
 async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | None:
@@ -16,7 +35,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
     (passed to yt-dlp as ytsearch1:<query>).
     Returns (mp3_path, youtube_url) or None on failure.
     """
-    target = query_or_url if query_or_url.startswith('https://') else f'ytsearch1:{query_or_url}'
+    target = _build_target(query_or_url)
     command = (
         'yt-dlp',
         '-f',
