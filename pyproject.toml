@@ -7,7 +7,7 @@ dependencies = [
     "aiogram>=3",
     "python-dotenv>=1.0",
     "aiohttp>=3.9",
-    "yt-dlp",
+    "yt-dlp[default]",
     "shazamio>=0.8.1",
 ]
 
@@ -36,4 +36,3 @@ allow_redefinition_new = true
 local_partial_types = true
 follow_untyped_imports = true
 plugins = ["pydantic.mypy"]
-
