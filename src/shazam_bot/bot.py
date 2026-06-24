@@ -148,6 +148,9 @@ async def _handle_media(  # noqa: C901
                     )
                 except Exception:
                     logger.exception('Failed to send MP3')
+                    await message.reply('⚠️ The track was found, but the MP3 could not be sent. Please try again later.')
+        else:
+            await message.reply('⚠️ The track was found, but the MP3 could not be downloaded. Please try again later.')
 
 
 @dp.message(Command('start', 'help'))
