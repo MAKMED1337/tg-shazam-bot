@@ -17,9 +17,9 @@ from .recognize import recognize
 
 logger = logging.getLogger(__name__)
 
-# Default aiohttp timeout is 5 min total; large files on slow VPS connections need more.
-_TG_TIMEOUT = aiohttp.ClientTimeout(total=600, connect=30)
-bot = Bot(token=BOT_TOKEN, session=AiohttpSession(timeout=_TG_TIMEOUT))
+# AiohttpSession.timeout must be a plain float (seconds); aiogram adds it to
+# polling_timeout internally. 600 s gives slow VPS connections time to upload large files.
+bot = Bot(token=BOT_TOKEN, session=AiohttpSession(timeout=600))
 dp = Dispatcher()
 
 MAX_FILE_SIZE = 20 * 1024 * 1024  # Bot API hard limit
