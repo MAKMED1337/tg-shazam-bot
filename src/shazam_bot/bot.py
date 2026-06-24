@@ -6,6 +6,7 @@ from pathlib import Path
 
 import aiohttp
 from aiogram import Bot, Dispatcher, F, types
+from aiogram.client.session.aiohttp import AiohttpSession
 from aiogram.filters import Command
 from aiogram.types import FSInputFile
 
@@ -16,7 +17,9 @@ from .recognize import recognize
 
 logger = logging.getLogger(__name__)
 
-bot = Bot(token=BOT_TOKEN)
+# Default aiohttp timeout is 5 min total; large files on slow VPS connections need more.
+_TG_TIMEOUT = aiohttp.ClientTimeout(total=600, connect=30)
+bot = Bot(token=BOT_TOKEN, session=AiohttpSession(timeout=_TG_TIMEOUT))
 dp = Dispatcher()
 
 MAX_FILE_SIZE = 20 * 1024 * 1024  # Bot API hard limit
@@ -88,7 +91,8 @@ async def _handle_media(  # noqa: C901
             await bot.download(file_id, destination=input_path)
         except Exception:
             logger.exception('TG download failed')
-            await status.edit_text('⚠️ Failed to download the file. Please try again.')
+            with contextlib.suppress(Exception):
+                await status.edit_text('⚠️ Failed to download the file. Please try again.')
             return
 
         track = await recognize(input_path)
