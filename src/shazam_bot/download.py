@@ -1,17 +1,20 @@
 import asyncio
 import logging
 import os
+import shutil
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 DOWNLOAD_TIMEOUT = 300
 MAX_FILESIZE = '50M'
 EXPECTED_PRINT_LINES = 2
+PRIVATE_FILE_MODE = 0o600
+RUNTIME_COOKIES_FILENAME = '.yt-dlp-cookies.txt'
 
 logger = logging.getLogger(__name__)
 
 
-def _yt_dlp_auth_args() -> tuple[str, ...]:
+def _yt_dlp_auth_args(writable_dir: Path | None = None) -> tuple[str, ...]:
     """Build optional yt-dlp network/authentication arguments from the environment."""
     args: list[str] = []
 
@@ -19,6 +22,11 @@ def _yt_dlp_auth_args() -> tuple[str, ...]:
     if cookies_file_value:
         cookies_file = Path(cookies_file_value)
         if cookies_file.is_file():
+            if writable_dir is not None:
+                runtime_cookies_file = writable_dir / RUNTIME_COOKIES_FILENAME
+                shutil.copyfile(cookies_file, runtime_cookies_file)
+                runtime_cookies_file.chmod(PRIVATE_FILE_MODE)
+                cookies_file = runtime_cookies_file
             args.extend(('--cookies', str(cookies_file)))
         else:
             logger.warning('YT_DLP_COOKIES_FILE is not a readable file: %s', cookies_file)
@@ -69,36 +77,36 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
     Returns (mp3_path, youtube_url) or None on failure.
     """
     target = _build_target(query_or_url)
-    command = (
-        'yt-dlp',
-        *_yt_dlp_auth_args(),
-        '-f',
-        'bestaudio',
-        '-x',
-        '--audio-format',
-        'mp3',
-        '--no-playlist',
-        '--max-filesize',
-        MAX_FILESIZE,
-        '--no-progress',
-        '--quiet',
-        '-o',
-        str(dest_dir / '%(id)s.%(ext)s'),
-        '--print',
-        'webpage_url',
-        '--print',
-        'after_move:filepath',
-        target,
-    )
-    logged_command = _redact_command(command)
     try:
+        command = (
+            'yt-dlp',
+            *_yt_dlp_auth_args(dest_dir),
+            '-f',
+            'bestaudio',
+            '-x',
+            '--audio-format',
+            'mp3',
+            '--no-playlist',
+            '--max-filesize',
+            MAX_FILESIZE,
+            '--no-progress',
+            '--quiet',
+            '-o',
+            str(dest_dir / '%(id)s.%(ext)s'),
+            '--print',
+            'webpage_url',
+            '--print',
+            'after_move:filepath',
+            target,
+        )
+        logged_command = _redact_command(command)
         proc = await asyncio.create_subprocess_exec(
             *command,
             stdout=asyncio.subprocess.PIPE,
             stderr=asyncio.subprocess.PIPE,
         )
     except Exception:
-        logger.exception('Failed to start MP3 download: command=%r', logged_command)
+        logger.exception('Failed to prepare or start MP3 download')
         return None
 
     try:

@@ -25,9 +25,10 @@ Dependencies: `yt-dlp`, `ffmpeg` must be on `PATH`.
 
 ## Docker
 
-YouTube commonly blocks unauthenticated downloads from VPS/datacenter IPs. On a
-computer with a browser where you are signed in to YouTube, close the browser
-and run the cookie export helper. The browser name is required:
+YouTube commonly blocks unauthenticated downloads from VPS/datacenter IPs. Use
+a dedicated browser profile (and preferably a separate YouTube account), sign
+in to YouTube, then completely close that browser profile and run the cookie
+export helper. The browser name is required:
 
 ```sh
 uv run scripts/export_youtube_cookies.py firefox
@@ -49,11 +50,13 @@ the Netscape-format cookie file expected by Docker at:
 .env/yt-dlp/youtube-cookies.txt
 ```
 
-Keep this file private: it contains authenticated browser sessions. The helper
+Keep this file private: it contains an authenticated browser session. The helper
 sets its permissions to `0600`, and the file is ignored by Git because the
-entire `.env/` directory is ignored. Using a separate browser profile and
-YouTube account is recommended. Copy the resulting file to the same path in the
-project checkout on the VPS before starting Docker.
+entire `.env/` directory is ignored. Do not reopen or use the dedicated browser
+profile after exporting: YouTube frequently rotates account cookies in active
+browser sessions, immediately invalidating the exported values. Copy the
+resulting file to the same path in the project checkout on the VPS before
+starting Docker.
 
 Then deploy or restart the bot:
 
@@ -62,6 +65,8 @@ docker compose up --build
 ```
 
 Compose mounts the cookie directory read-only and sets `YT_DLP_COOKIES_FILE`.
+Each download uses a private writable copy because `yt-dlp` writes its cookie
+jar on exit; the source secret remains unchanged.
 If the VPS IP is still blocked, set an authenticated residential proxy in
 `.env/bot.env` as `YT_DLP_PROXY=http://user:password@host:port`. Proxy values and
 cookie paths are redacted from downloader command logs. Cookies expire, so
