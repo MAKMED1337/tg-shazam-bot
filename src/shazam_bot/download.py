@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import os
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
@@ -8,6 +9,38 @@ MAX_FILESIZE = '50M'
 EXPECTED_PRINT_LINES = 2
 
 logger = logging.getLogger(__name__)
+
+
+def _yt_dlp_auth_args() -> tuple[str, ...]:
+    """Build optional yt-dlp network/authentication arguments from the environment."""
+    args: list[str] = []
+
+    cookies_file_value = os.environ.get('YT_DLP_COOKIES_FILE', '').strip()
+    if cookies_file_value:
+        cookies_file = Path(cookies_file_value)
+        if cookies_file.is_file():
+            args.extend(('--cookies', str(cookies_file)))
+        else:
+            logger.warning('YT_DLP_COOKIES_FILE is not a readable file: %s', cookies_file)
+
+    proxy = os.environ.get('YT_DLP_PROXY', '').strip()
+    if proxy:
+        args.extend(('--proxy', proxy))
+
+    return tuple(args)
+
+
+def _redact_command(command: tuple[str, ...]) -> tuple[str, ...]:
+    """Keep credentials and private paths out of application logs."""
+    redacted = list(command)
+    for option in ('--cookies', '--proxy'):
+        try:
+            value_index = redacted.index(option) + 1
+        except ValueError:
+            continue
+        if value_index < len(redacted):
+            redacted[value_index] = '<redacted>'
+    return tuple(redacted)
 
 
 def _build_target(query_or_url: str) -> str:
@@ -38,6 +71,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
     target = _build_target(query_or_url)
     command = (
         'yt-dlp',
+        *_yt_dlp_auth_args(),
         '-f',
         'bestaudio',
         '-x',
@@ -56,6 +90,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
         'after_move:filepath',
         target,
     )
+    logged_command = _redact_command(command)
     try:
         proc = await asyncio.create_subprocess_exec(
             *command,
@@ -63,7 +98,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
             stderr=asyncio.subprocess.PIPE,
         )
     except Exception:
-        logger.exception('Failed to start MP3 download: command=%r', command)
+        logger.exception('Failed to start MP3 download: command=%r', logged_command)
         return None
 
     try:
@@ -74,7 +109,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
         logger.exception(
             'MP3 download timed out after %ss: command=%r stdout=%r stderr=%r',
             DOWNLOAD_TIMEOUT,
-            command,
+            logged_command,
             stdout.decode(errors='replace'),
             stderr.decode(errors='replace'),
         )
@@ -86,7 +121,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
         logger.error(
             'MP3 download failed: returncode=%s command=%r stdout=%r stderr=%r',
             proc.returncode,
-            command,
+            logged_command,
             stdout_text,
             stderr_text,
         )
@@ -96,7 +131,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
     if len(lines) < EXPECTED_PRINT_LINES:
         logger.error(
             'MP3 download returned unexpected output: command=%r stdout=%r stderr=%r',
-            command,
+            logged_command,
             stdout_text,
             stderr_text,
         )
@@ -109,7 +144,7 @@ async def fetch_mp3(query_or_url: str, dest_dir: Path) -> tuple[Path, str] | Non
         logger.error(
             'MP3 output file is missing or empty: path=%s command=%r stdout=%r stderr=%r',
             mp3_path,
-            command,
+            logged_command,
             stdout_text,
             stderr_text,
         )

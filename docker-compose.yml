@@ -2,9 +2,12 @@ services:
   bot:
     build: .
     env_file: .env/bot.env
+    environment:
+      YT_DLP_COOKIES_FILE: /run/secrets/yt-dlp/youtube-cookies.txt
     restart: unless-stopped
     volumes:
       - yt_dlp_cache:/tmp/yt-dlp
+      - ./.env/yt-dlp:/run/secrets/yt-dlp:ro
 
 volumes:
   yt_dlp_cache:
