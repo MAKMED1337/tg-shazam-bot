@@ -2,11 +2,11 @@
 name = "shazam-bot"
 version = "0.1.0"
 requires-python = ">=3.12"
-license = { text = "GPL-3.0-or-later" }
 dependencies = [
     "aiogram>=3",
     "python-dotenv>=1.0",
     "aiohttp>=3.9",
+    "pydub>=0.25.1",
     "yt-dlp[default]",
     "shazamio>=0.8.1",
 ]

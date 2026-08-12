@@ -29,8 +29,7 @@ COPY --from=ffmpeg /ffmpeg /usr/local/bin/
 
 ENV PATH="/app/.venv/bin:$PATH" \
     PYTHONDONTWRITEBYTECODE=1 \
-    PYTHONUNBUFFERED=1 \
-    PYTHONWARNINGS="ignore:invalid escape sequence:SyntaxWarning"
+    PYTHONUNBUFFERED=1
 
 WORKDIR /app
 

@@ -1,14 +1,29 @@
 import asyncio
 import re
 import tempfile
+import warnings
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 from urllib.parse import quote, unquote
 
+# pydub 0.25.1 contains several non-raw regex strings. Suppress that known
+# third-party SyntaxWarning only while importing pydub; all other warnings stay enabled.
+with warnings.catch_warnings():
+    warnings.filterwarnings(
+        'ignore',
+        message='invalid escape sequence',
+        category=SyntaxWarning,
+    )
+    warnings.filterwarnings(
+        'ignore',
+        message="'audioop' is deprecated",
+        category=DeprecationWarning,
+    )
+    from pydub.audio_segment import AudioSegment
+
 from shazamio import Shazam
 from shazamio.converter import Converter
-from shazamio.utils import get_song
 
 FFMPEG_TIMEOUT = 120
 SECONDS_PER_HOUR = 3600
@@ -124,7 +139,10 @@ async def _recognize_wav(wav_path: Path) -> Track | None:
     try:
         # Use the Python fingerprinting path (Converter + send_recognize_request) rather
         # than shazamio's Rust-backed recognize(), which fails to match on some files.
-        song = await get_song(data=wav_path)
+        # The input is always our own WAV, so load it explicitly. shazamio.get_song()
+        # discards the format hint and makes pydub invoke the much larger ffprobe binary.
+        with wav_path.open('rb') as wav_file:
+            song = AudioSegment.from_wav(wav_file)  # type: ignore[no-untyped-call]
         audio = Converter.normalize_audio_data(song)
         sig = Converter.create_signature_generator(audio).get_next_signature()
         if sig is None:
