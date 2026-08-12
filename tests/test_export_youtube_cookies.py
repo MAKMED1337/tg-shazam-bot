@@ -1,12 +1,11 @@
 import argparse
 import copy
 import stat
-from http.cookiejar import Cookie
+from http.cookiejar import Cookie, MozillaCookieJar
 from pathlib import Path
 from typing import Self
 
 import pytest
-from yt_dlp.cookies import YoutubeDLCookieJar
 
 import scripts.export_youtube_cookies as exporter
 from scripts.export_youtube_cookies import export_cookies, parse_browser_spec
@@ -37,7 +36,7 @@ def test_parse_browser_spec_accepts_firefox_container() -> None:
 
 
 def test_export_cookies_writes_private_netscape_file(monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
-    cookie_jar = YoutubeDLCookieJar()
+    cookie_jar = MozillaCookieJar()
     cookie_jar.set_cookie(
         Cookie(
             version=0,

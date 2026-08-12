@@ -77,7 +77,7 @@ def export_cookies(
     temporary_path = Path(temporary_name)
     try:
         youtube_cookie_jar.save(  # type: ignore[no-untyped-call]
-            temporary_path,
+            str(temporary_path),
             ignore_discard=True,
             ignore_expires=True,
         )
