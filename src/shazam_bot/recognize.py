@@ -11,6 +11,8 @@ from shazamio.converter import Converter
 from shazamio.utils import get_song
 
 FFMPEG_TIMEOUT = 120
+SECONDS_PER_HOUR = 3600
+SECONDS_PER_MINUTE = 60
 FALLBACK_MIN_DURATION = 30.0
 SEGMENT_DURATION = 15
 FALLBACK_FRACS = (0.25, 0.5, 0.75)
@@ -100,19 +102,20 @@ async def _convert_to_wav(input_path: Path, output_path: Path, ss: str | None = 
 async def _get_duration(input_path: Path) -> float | None:
     try:
         proc = await asyncio.create_subprocess_exec(
-            'ffprobe',
-            '-v',
-            'quiet',
-            '-show_entries',
-            'format=duration',
-            '-of',
-            'csv=p=0',
+            'ffmpeg',
+            '-hide_banner',
+            '-nostdin',
+            '-i',
             str(input_path),
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.DEVNULL,
+            stdout=asyncio.subprocess.DEVNULL,
+            stderr=asyncio.subprocess.PIPE,
         )
-        stdout, _ = await asyncio.wait_for(proc.communicate(), timeout=30)
-        return float(stdout.decode().strip())
+        _, stderr = await asyncio.wait_for(proc.communicate(), timeout=30)
+        match = re.search(r'Duration:\s*(\d+):(\d+):(\d+(?:\.\d+)?)', stderr.decode(errors='replace'))
+        if match is None:
+            return None
+        hours, minutes, seconds = match.groups()
+        return int(hours) * SECONDS_PER_HOUR + int(minutes) * SECONDS_PER_MINUTE + float(seconds)
     except Exception:  # noqa: BLE001
         return None
 

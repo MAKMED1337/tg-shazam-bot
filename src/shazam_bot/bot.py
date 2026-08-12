@@ -2,6 +2,7 @@ import asyncio
 import contextlib
 import logging
 import tempfile
+import time
 from pathlib import Path
 
 import aiohttp
@@ -70,7 +71,7 @@ def _extract_media(message: types.Message) -> tuple[str, int | None, str] | None
     return None
 
 
-async def _handle_media(  # noqa: C901
+async def _handle_media(  # noqa: C901,PLR0915
     message: types.Message,
     file_id: str,
     file_size: int | None,
@@ -87,6 +88,7 @@ async def _handle_media(  # noqa: C901
         tmp_dir = Path(tmp)
         input_path = tmp_dir / f'input.{file_ext}'
 
+        download_started_at = time.perf_counter()
         try:
             await bot.download(file_id, destination=input_path)
         except Exception:
@@ -94,17 +96,21 @@ async def _handle_media(  # noqa: C901
             with contextlib.suppress(Exception):
                 await status.edit_text('⚠️ Failed to download the file. Please try again.')
             return
+        logger.info('Telegram media download finished: duration=%.2fs', time.perf_counter() - download_started_at)
 
+        recognition_started_at = time.perf_counter()
         track = await recognize(input_path)
+        recognition_duration = time.perf_counter() - recognition_started_at
         if track is None:
-            logger.info('Recognition failed for file_id=%s', file_id)
+            logger.info('Recognition failed for file_id=%s duration=%.2fs', file_id, recognition_duration)
             await status.edit_text("😔 Couldn't recognize the music.")
             return
 
-        logger.info('Recognized: %s - %s', track.title, track.artist)
+        logger.info('Recognized: %s - %s duration=%.2fs', track.title, track.artist, recognition_duration)
 
         # Kick off MP3 fetch immediately; download cover concurrently while it runs
         yt_source = track.ytmusic_url or f'{track.title} {track.artist}'
+        mp3_started_at = time.perf_counter()
         mp3_task = asyncio.create_task(fetch_mp3(yt_source, tmp_dir))
 
         cover_path: Path | None = None
@@ -134,17 +140,29 @@ async def _handle_media(  # noqa: C901
             logger.exception('Failed to send track info')
 
         mp3_result = await mp3_task
-        logger.info('MP3 fetch %s for: %s - %s', 'succeeded' if mp3_result else 'failed', track.title, track.artist)
+        logger.info(
+            'MP3 fetch %s for: %s - %s duration=%.2fs',
+            'succeeded' if mp3_result else 'failed',
+            track.title,
+            track.artist,
+            time.perf_counter() - mp3_started_at,
+        )
 
         if mp3_result:
             mp3_path, _ = mp3_result
             if mp3_path.exists():
+                upload_started_at = time.perf_counter()
                 try:
                     await message.reply_audio(
                         audio=FSInputFile(mp3_path),
                         title=track.title,
                         performer=track.artist,
                         thumbnail=FSInputFile(cover_path) if cover_path else None,
+                    )
+                    logger.info(
+                        'Telegram MP3 upload finished: size=%s duration=%.2fs',
+                        mp3_path.stat().st_size,
+                        time.perf_counter() - upload_started_at,
                     )
                 except Exception:
                     logger.exception('Failed to send MP3')
